@@ -109,3 +109,57 @@ public:
     ) const;
 
 };
+
+/**
+ * Main class for parsing and analyzing cQASM files with the v2 API.
+ */
+class V2Analyzer {
+public:
+
+    /**
+     * Creates a new 2.x semantic analyzer.
+     *
+     * TODO
+     */
+    V2Analyzer();
+
+    /**
+     * Only parses the given file. The file must be in x.x syntax; no version
+     * check or conversion is performed. Returns a vector of strings, of which
+     * the first is always present and is the CBOR serialization of the vx.x
+     * AST. Any additional strings represent error messages.
+     */
+    static std::vector<std::string> parse_file(
+        const std::string &filename
+    );
+
+    /**
+     * Same as parse_file(), but instead receives the file contents directly.
+     * The filename, if specified, is only used when reporting errors.
+     */
+    static std::vector<std::string> parse_string(
+        const std::string &data,
+        const std::string &filename = "<unknown>"
+    );
+
+    /**
+     * Parses and analyzes the given file. If the file is written in a later or
+     * earlier file version, this function may try to convert it. Returns a
+     * vector of strings, of which the first is always present and is the CBOR
+     * serialization of the v1.x semantic tree. Any additional strings represent
+     * error messages.
+     */
+    std::vector<std::string> analyze_file(
+        const std::string &filename
+    ) const;
+
+    /**
+     * Same as analyze_file(), but instead receives the file contents directly.
+     * The filename, if specified, is only used when reporting errors.
+     */
+    std::vector<std::string> analyze_string(
+        const std::string &data,
+        const std::string &filename = "<unknown>"
+    ) const;
+
+};

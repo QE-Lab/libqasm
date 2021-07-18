@@ -4,8 +4,10 @@
 
 #include "cqasm-py.hpp"
 #include "cqasm-v1.hpp"
+#include "cqasm-v2.hpp"
 
 namespace v1 = cqasm::v1;
+namespace v2 = cqasm::v2;
 
 /**
  * Creates a new 1.x semantic analyzer. When without_defaults is specified,
@@ -132,4 +134,73 @@ std::vector<std::string> V1Analyzer::analyze_string(
     }
     retval.insert(retval.end(), result.errors.begin(), result.errors.end());
     return retval;
+}
+
+/**
+ * Creates a new 2.x semantic analyzer.
+ *
+ * TODO
+ */
+V2Analyzer::V2Analyzer() {}
+
+/**
+ * Only parses the given file. The file must be in x.x syntax; no version
+ * check or conversion is performed. Returns a vector of strings, of which the
+ * first is always present and is the CBOR serialization of the vx.x AST. Any
+ * additional strings represent error messages.
+ */
+std::vector<std::string> V2Analyzer::parse_file(
+    const std::string &filename
+) {
+    auto result = v2::parser::parse_file(filename);
+    std::vector<std::string> retval{""};
+    if (result.errors.empty()) {
+        retval[0] = ::tree::base::serialize(result.root);
+    }
+    retval.insert(retval.end(), result.errors.begin(), result.errors.end());
+    return retval;
+}
+
+/**
+ * Same as parse_file(), but instead receives the file contents directly.
+ * The filename, if specified, is only used when reporting errors.
+ */
+std::vector<std::string> V2Analyzer::parse_string(
+    const std::string &data,
+    const std::string &filename
+) {
+    auto result = v2::parser::parse_string(data, filename);
+    std::vector<std::string> retval{""};
+    if (result.errors.empty()) {
+        retval[0] = ::tree::base::serialize(result.root);
+    }
+    retval.insert(retval.end(), result.errors.begin(), result.errors.end());
+    return retval;
+}
+
+/**
+ * Parses and analyzes the given file. If the file is written in a later or
+ * earlier file version, this function may try to convert it. Returns a
+ * vector of strings, of which the first is always present and is the CBOR
+ * serialization of the v1.x semantic tree. Any additional strings represent
+ * error messages.
+ */
+std::vector<std::string> V2Analyzer::analyze_file(
+    const std::string &filename
+) const {
+    (void)filename;
+    return {"", "not yet implemented!"};
+}
+
+/**
+ * Same as analyze_file(), but instead receives the file contents directly.
+ * The filename, if specified, is only used when reporting errors.
+ */
+std::vector<std::string> V2Analyzer::analyze_string(
+    const std::string &data,
+    const std::string &filename
+) const {
+    (void)data;
+    (void)filename;
+    return {"", "not yet implemented!"};
 }

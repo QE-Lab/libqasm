@@ -1,0 +1,930 @@
+# Implementation for the abstract syntax tree node classes.
+source
+
+# Header file for the abstract syntax tree node classes.
+header
+
+// Include tree base classes.
+include "cqasm-tree.hpp"
+tree_namespace cqasm::tree
+
+// Include primitive types.
+include "cqasm-v2-primitives.hpp"
+import cqasm.v2.primitives
+
+// Initialization function to use to construct default values for the tree base
+// classes and primitives.
+initialize_function cqasm::v2::primitives::initialize
+serdes_functions cqasm::v2::primitives::serialize cqasm::v2::primitives::deserialize
+
+// Include SourceLocation annotation object for the debug dump generator.
+src_include "cqasm-annotations.hpp"
+location cqasm::annotations::SourceLocation
+
+# Namespace for the abstract syntax tree node classes.
+namespace cqasm
+namespace v2
+namespace ast
+
+# A scope modifier, or lack thereof.
+scope_modifier {
+
+    # Indicates the lack of a scope modifier, resulting in local scope.
+    scope_local {}
+
+    # Indicates that the "export" keyword was used, resulting in parent scope.
+    scope_parent {}
+
+    # Indicates that the "global" keyword was used, resulting in global scope.
+    scope_global {}
+
+}
+
+# A lifetime modifier, or lack thereof.
+lifetime_modifier {
+
+    # Indicates the lack of a lifetime modifier, resulting in automatic
+    # lifetime.
+    lifetime_automatic {}
+
+    # Indicates that the "static" keyword was used, resulting in static
+    # lifetime.
+    lifetime_static {}
+
+}
+
+# An implementation modifier, or lack thereof.
+implementation_modifier {
+
+    # Indicates that the compiler and/or target should choose the best available
+    # implementation.
+    implementation_automatic {}
+
+    # Indicates that the associated construct must be implemented using only
+    # compile-time logic. For example, functions must be inlined, expressions
+    # must be inlined and constant-propagated, etc. The exact semantics depend
+    # on the construct.
+    implementation_inline {}
+
+    # Indicates that the associated construct must be implemented using
+    # classical ALU-based logic at runtime. This should be done even if the
+    # construct would otherwise be optimized away, so this effectively inhibits
+    # most optimizations.
+    implementation_runtime {}
+
+    # Indicates that the associated construct must map to an atomic machine
+    # instruction. Usefulness in user code is probably limited to asserting that
+    # a construct must be implemented using conditional execution, but it is
+    # essential in gateset definitions in architecture-specific header files.
+    implementation_primitive {}
+
+}
+
+# A pack of modifier keywords, or lack thereof.
+modifiers {
+
+    # Scope modifier.
+    scope: One<scope_modifier>;
+
+    # Lifetime modifier.
+    lifetime: One<lifetime_modifier>;
+
+    # Implementation style modifier.
+    implementation: One<implementation_modifier>;
+
+}
+
+# An annotation/pragma data block.
+annotation_data {
+
+    # Interface name.
+    iface: One<identifier>;
+
+    # Operation name.
+    oper: One<identifier>;
+
+    # Arbitrary data payload.
+    data: One<unit>;
+
+}
+
+# A set of annotations applied to a control-flow block.
+annotations {
+
+    # The annotations.
+    data: Any<annotation_data>;
+
+}
+
+# A possible code path for a conditional block.
+match_arm {
+
+    # The condition value. Depending on context this is either a boolean that
+    # must be true for body to be executed, or a static value that is matched
+    # against a common value.
+    condition: One<unit>;
+
+    # The body analyzed or executed when the condition is true.
+    body: One<unit>;
+
+}
+
+# The base element for almost everything in cQASM 2.0.
+unit {
+
+    # The null literal/void type.
+    void {}
+
+    # Expression-like units, primarily focused on functional programming.
+    expression {
+
+        # Any kind of literal.
+        literal {
+
+            # An integer literal.
+            integer_literal {
+
+                # The integer value as written in the source code.
+                value: cqasm::v2::primitives::Str;
+
+                # A decimal integer literal.
+                decimal_integer_literal {}
+
+                # A hexadecimal integer literal.
+                hexadecimal_integer_literal {}
+
+                # A binary integer literal.
+                binary_integer_literal {}
+
+            }
+
+            # A real number literal.
+            real_literal {
+
+                # The real number value as written in the source code.
+                value: cqasm::v2::primitives::Str;
+
+            }
+
+            # A string literal.
+            string_literal {
+
+                # The contents of the string literal, with escape sequences
+                # already processed during parsing.
+                value: cqasm::v2::primitives::Str;
+
+            }
+
+            # A JSON literal.
+            json_literal {
+
+                # The unparsed JSON data enclosed in {}, but otherwise as
+                # written in the source code.
+                value: cqasm::v2::primitives::Str;
+
+            }
+
+        }
+
+        # An identifier. Can be a simple name or an operator reference.
+        identifier {
+
+            # The identifier as written in the file.
+            name: cqasm::v2::primitives::Str;
+
+        }
+
+        # Grouping parentheses. These are meaningful to the analyzer in cQASM
+        # 2.0 because they are used to convert comma/semicolon-separated
+        # sequences into packs. When there is no comma or semicolon immediately
+        # within the parentheses this is no-op for the analyzer, and only serves
+        # to override operator precedence.
+        parentheses {
+
+            # The contained unit.
+            data: One<unit>;
+
+        }
+
+        # Unpacking operations. Turns the embedded pack or pack of packs into a
+        # comma-separated list or a semicolon-separated comma-separated list.
+        unpack {
+
+            # The contained unit.
+            data: One<unit>;
+
+            # A one-dimensional unpacking operation (* prefix).
+            unpack_1d {}
+
+            # A two-dimensional unpacking operation (** prefix).
+            unpack_2d {}
+
+        }
+
+        # Index/slice/swizzle operator. Takes a tuple (or in some cases a pack)
+        # and moves elements of it around to form a scalar or a new tuple or
+        # pack.
+        index {
+
+            # The indexed unit.
+            data: One<unit>;
+
+            # The index.
+            index: One<unit>;
+
+            # A plain index operator, where the index is a potentially
+            # comma-separated list of indices or tuples thereof, to be flattened
+            # into a zero or one-dimensional list of indices, applied piecewise.
+            plain_index {}
+
+            # A plain index operator, where the index is a potentially
+            # comma-separated list of indices mapping to the dimensions of the
+            # tuple/pack, where the shape (scalar or N-dimensional tuple) of the
+            # indices corresponds to the shape of the returned value.
+            matrix_index {}
+
+            # A transposed index operator, where the index is a potentially
+            # comma- and/or semicolon-separated list corresponding to the shape
+            # of the returned value, of which each element is a scalar or
+            # 1-dimensional tuple of integers that map to the dimensions of the
+            # indexed value.
+            transposed_matrix_index {}
+
+        }
+
+        # Shorthand notation for a tuple of some finitely ordered type,
+        # representing an increasing or decreasing range of subsequent values.
+        range_operator {
+
+            # The first value of the tuple.
+            begin: One<unit>;
+
+            # The last value of the tuple.
+            end: One<unit>;
+
+        }
+
+        # A regular unary operator that simply maps to a function and is thus
+        # overloadable.
+        unary_operator {
+
+            # The operand.
+            operand: One<unit>;
+
+            # Positive number operator (+x).
+            positive_operator {}
+
+            # Negative number operator (-x).
+            negative_operator {}
+
+            # Logical NOT operator (!x).
+            logical_not_operator {}
+
+            # Bitwise NOT operator (~x).
+            bitwise_not_operator {}
+
+        }
+
+        # A regular binary operator that simply maps to a function and is thus
+        # overloadable.
+        binary_operator {
+
+            # The left-hand side operand.
+            lhs: One<unit>;
+
+            # The right-hand side operand.
+            rhs: One<unit>;
+
+            # Power/exponentiation operator (x ** y).
+            power_operator {}
+
+            # Multiplication operator (x * y).
+            multiply_operator {}
+
+            # True division operator (x / y).
+            true_division_operator {}
+
+            # Euclidian division operator (x // y).
+            euclidian_division_operator {}
+
+            # Euclidian remainder/modulo operator (x % y).
+            modulo_operator {}
+
+            # Addition operator (x + y).
+            addition_operator {}
+
+            # Subtraction operator (x - y).
+            subtraction_operator {}
+
+            # Shift-left operator (x << y).
+            shift_left_operator {}
+
+            # Arithmetic shift-right operator (x >> y).
+            arithmetic_shift_right_operator {}
+
+            # Logical shift-right operator (x >>> y).
+            logical_shift_right_operator {}
+
+            # Less-than operator (x < y).
+            less_than_operator {}
+
+            # Less-than or equal operator (x <= y).
+            less_or_equal_operator {}
+
+            # Greater-than operator (x > y).
+            greater_than_operator {}
+
+            # Greater-than or equal operator (x >= y).
+            greater_or_equal_operator {}
+
+            # Equality operator (x == y).
+            equality_operator {}
+
+            # Inequality operator (x != y).
+            inequality_operator {}
+
+            # Bitwise AND operator (x & y).
+            bitwise_and_operator {}
+
+            # Bitwise XOR operator (x ^ y).
+            bitwise_xor_operator {}
+
+            # Bitwise OR operator (x | y).
+            bitwise_or_operator {}
+
+            # Logical XOR operator (x ^^ y).
+            logical_xor_operator {}
+
+        }
+
+        # Short-circuiting operators.
+        short_circuit_operator {
+
+            # Short-circuiting logical AND operator.
+            logical_and_operator {
+
+                # The left-hand side operand.
+                lhs: One<unit>;
+
+                # The right-hand side operand, only analyzed when lhs is not
+                # literal false, and only has side effects evaluated at runtime
+                # when lhs did not evaluate to false.
+                rhs: One<unit>;
+
+            }
+
+            # Short-circuiting logical OR operator.
+            logical_or_operator {
+
+                # The left-hand side operand.
+                lhs: One<unit>;
+
+                # The right-hand side operand, only analyzed when lhs is not
+                # literal true, and only has side effects evaluated at runtime
+                # when lhs did not evaluate to true.
+                rhs: One<unit>;
+
+            }
+
+            # Selection ternary operator.
+            selection_operator {
+
+                # The condition operand.
+                condition: One<unit>;
+
+                # The value when condition is true. Only analyzed when condition
+                # is not literal false, and only has side effects evaluated at
+                # runtime when condition evaluated to true.
+                when_true: One<unit>;
+
+                # The value when condition is false. Only analyzed when
+                # condition is not literal true, and only has side effects
+                # evaluated at runtime when condition evaluated to false.
+                when_false: One<unit>;
+
+            }
+
+        }
+
+        # Assigning/mutating operators.
+        assigning_operator {
+
+            # The assignment target.
+            target: One<unit>;
+
+            # A plain assignment operator (x = y).
+            assignment_operator {
+
+                # The value to assign to target.
+                value: One<unit>;
+
+            }
+
+            # Unary operators that assign a new value to target by mutating its
+            # previous value.
+            unary_mutating_operator {
+
+                # Post-increment operator, i.e. increment target and return the
+                # old value (x++).
+                post_increment_operator {}
+
+                # Post-decrement operator, i.e. decrement target and return the
+                # old value (x--).
+                post_decrement_operator {}
+
+                # Pre-increment operator, i.e. increment target and return the
+                # new value (++x).
+                pre_increment_operator {}
+
+                # Pre-decrement operator, i.e. decrement target and return the
+                # new value (--y).
+                pre_decrement_operator {}
+
+            }
+
+            # Binary operators that assign a new value to target by combining
+            # its previous value with a second value.
+            binary_mutating_operator {
+
+                # The value used to mutate target with.
+                value: One<unit>;
+
+                # Updates target by raising it to the given power (x **= y).
+                power_by_operator {}
+
+                # Updates target by multiplying it with the given value
+                # (x *= y).
+                multiply_by_operator {}
+
+                # Updates target by true-dividing it by the given value
+                # (x /= y).
+                true_divide_by_operator {}
+
+                # Updates target by Euclidian-dividing it by the given value
+                # (x //= y).
+                euclidian_divide_by_operator {}
+
+                # Updates target by taking the modulo of it and the given value
+                # (x %= y).
+                modulo_by_operator {}
+
+                # Updates target by adding the given value to it (x += y).
+                increment_by_operator {}
+
+                # Updates target by subtracting the given value from it
+                # (x -= y).
+                decrement_by_operator {}
+
+                # Updates target by shifting it left by the given number of bits
+                # (x <<= y).
+                shift_left_by_operator {}
+
+                # Updates target by arithmically shifting it right by the given
+                # number of bits (x >>= y).
+                arithmically_shift_right_by_operator {}
+
+                # Updates target by logically shifting it right by the given
+                # number of bits (x >>>= y).
+                logically_shift_right_by_operator {}
+
+                # Updates target by applying the bitwise AND operator to its
+                # previous value and the given value (x &= y).
+                bitwise_and_by_operator {}
+
+                # Updates target by applying the bitwise XOR operator to its
+                # previous value and the given value (x ^= y).
+                bitwise_xor_by_operator {}
+
+                # Updates target by applying the bitwise OR operator to its
+                # previous value and the given value (x |= y).
+                bitwise_or_by_operator {}
+
+            }
+
+        }
+
+        # A function call.
+        function_call {
+
+            # A reference to the function.
+            function: One<unit>;
+
+            # The argument pack that the function is to be called with.
+            arguments: One<unit>;
+
+        }
+
+    }
+
+    # Statement-like blocks, primarily focused on imperative programming.
+    statement {
+
+        # A code block. Code blocks treat immediately enclosed semicolons as a
+        # temporal separation of unit side effects (i.e. sequential
+        # execution/issue), and immediately enclosed commas as spatial separation
+        # of unit side effects (i.e. parallel execution/issue). They also support
+        # labels (declaration unit) and goto units.
+        block {
+
+            # The contained unit.
+            data: One<unit>;
+
+        }
+
+        # Conditional blocks.
+        conditional_block {
+
+            # The modifier keywords that were applied to this object definition.
+            modifiers: One<modifiers>;
+
+            # Any annotations applied to conditional block.
+            annotations: One<annotations>;
+
+            # The type returned by this block when used functionally. The value
+            # returned by the arms/otherwise units is coerced to this.
+            return_type: One<unit>;
+
+            # Condition-body pairs. For if-elif-else blocks, the condition
+            # element is a boolean and the first condition that evaluates to
+            # true is chosen; for match blocks, the condition element is matched
+            # against value.
+            arms: Many<match_arm>;
+
+            # The block that is executed when none of the arms match.
+            otherwise: One<unit>;
+
+            # If-elif-else block.
+            if_elif_else_block {}
+
+            # Match block.
+            match_block {
+
+                # The matched value.
+                value: One<unit>;
+
+            }
+
+        }
+
+        # Looping blocks.
+        looping_block {
+
+            # The modifier keywords that were applied to this object definition.
+            modifiers: One<modifiers>;
+
+            # An optional label for the loop, that can be referred to in break
+            # and continue statements.
+            label: Maybe<identifier>;
+
+            # Any annotations applied to the looping block.
+            annotations: One<annotations>;
+
+            # Loop control unit. The type of unit expected here depends on the
+            # loop type.
+            control: One<unit>;
+
+            # The loop body.
+            body: One<unit>;
+
+            # A C-style for loop. control must be three semicolon-separated
+            # units:
+            #  - the first is interpreted as a variable declaration (without
+            #    the variable keyword in front), is evaluated before the first
+            #    loop iteration, and defines the variables in the loop body
+            #    scope;
+            #  - the second is interpreted as a boolean expression, which must
+            #    evaluate to true at the beginning of each loop iteration for
+            #    the loop to continue;
+            #  - the third is interpreted as a comma-separated list of units, of
+            #    which the return values are discarded, and the side effects are
+            #    evaluated at the end of each loop iteration (including after a
+            #    continue).
+            for_loop {}
+
+            # A foreach loop, or loop with fixed iteration count. control must
+            # be a unit evaluating to a tuple or to a static pack, or be a
+            # variable declaration (without keyword) with an initializer that
+            # evaluates to a tuple or to a static pack. The loop body will be
+            # evaluated for each element in (the outer dimension of) the tuple
+            # or pack, with the variable name optionally referring to the
+            # selected element. For a static pack to be acceptable, the foreach
+            # loop must be marked inline, and the loop body must be valid for
+            # all element types.
+            foreach_loop {}
+
+            # A while loop. control must be a unit that evaluates to a boolean.
+            # It must evaluate to true at the start of each loop iteration for
+            # the loop to continue.
+            while_loop {}
+
+            # A repeat-until loop. control is specified after the loop body in
+            # this case. It must be a unit that evaluates to a boolean. It must
+            # evaluate to false at the end of each loop iteration for the loop
+            # to continue. Note that this means that the loop body is always
+            # executed at least once.
+            repeat_until_loop {}
+
+        }
+
+        # Special statements that represent or augment existing control-flow
+        # constructs.
+        control_flow_statement {
+
+            # A goto statement.
+            goto_statement {
+
+                # The branch target.
+                target: One<identifier>;
+
+            }
+
+            # A return statement.
+            return_statement {
+
+                # The value to return.
+                value: One<unit>;
+
+            }
+
+            # A break statement.
+            break_statement {
+
+                # An optional loop label identifying the loop to break out of.
+                label: Maybe<identifier>;
+
+            }
+
+            # A continue statement.
+            continue_statement {
+
+                # An optional loop label identifying the loop to continue.
+                label: Maybe<identifier>;
+
+            }
+
+        }
+
+        # Special statements that model communication with the host or the user.
+        communication_statement {
+
+            # A send statement. Sends data to the host asynchronously.
+            send_statement {
+
+                # The data to send.
+                data: One<unit>;
+
+            }
+
+            # A receive statement. Waits for the host to asynchronously send
+            # data to us.
+            receive_statement {
+
+                # The data type expected to be received.
+                expected_type: One<unit>;
+
+            }
+
+            # A print or abort statement.
+            debug_statement {
+
+                # Modifiers, used to signal whether this debug statement
+                # affects static analysis, is simulation-only, or must be
+                # executed during simulation and runtime.
+                modifiers: One<modifiers>;
+
+                # The print arguments.
+                data: One<unit>;
+
+                # A regular print statement. Does not affect program flow.
+                print_statement {}
+
+                # An abort statement. Behaves like a print, followed by
+                # unsuccessful termination of the algorithm
+                abort_statement {}
+
+            }
+
+        }
+
+        # A pragma statement.
+        pragma {
+
+            # The annotation data.
+            data: One<annotation_data>;
+
+        }
+
+    }
+
+    # Attaches an annotation to a unit.
+    annotation {
+
+        # The unit that the annotation is applied to.
+        target: One<unit>;
+
+        # The annotation data.
+        data: One<annotation_data>;
+
+    }
+
+    # Anything that defines something rather than output code directly.
+    definition {
+
+        # A function definition or declaration.
+        function {
+
+            # The function name.
+            name: One<identifier>;
+
+            # The parameter pack that the function accepts.
+            parameters: One<unit>;
+
+            # The type that the function returns.
+            return_type: One<unit>;
+
+            # A function (forward) declaration. The function must be defined before
+            # the current block is closed.
+            function_declaration {}
+
+            # A function definition.
+            function_definition {
+
+                # The modifier keywords that were applied to this function
+                # definition.
+                modifiers: One<modifiers>;
+
+                # Any annotations applied to the function definition.
+                annotations: One<annotations>;
+
+                # The body of the function.
+                body: One<unit>;
+
+            }
+
+        }
+
+        # A variable, constant, or unit alias declaration.
+        object_definition {
+
+            # The modifier keywords that were applied to this object definition.
+            modifiers: One<modifiers>;
+
+            # The unit that describes the definition.
+            data: One<unit>;
+
+            # Definition for qubits. This is mostly just sugar for
+            # "const ...: qref".
+            qubit_definition {}
+
+            # Definition for a mutable storage location.
+            variable_definition {}
+
+            # Definition for a storage location that cannot be (directly) assigned.
+            constant_definition {}
+
+            # Definition for a named alias to a unit.
+            alias_definition {}
+
+        }
+
+        # A custom type definition.
+        type_definition {
+
+            # The modifier keywords that were applied to this object definition.
+            modifiers: One<modifiers>;
+
+            # The name of the type.
+            name: One<identifier>;
+
+            # A custom sum type (enumeration) definition.
+            sum_type_definition {
+
+                # The values that the type can take.
+                values: One<unit>;
+
+            }
+
+            # A custom type derived from an existing type.
+            derived_type_definition {
+
+                # The base type.
+                base: One<unit>;
+
+                # A special scope containing function definitions for the type
+                # that can make use of the builtin as_base() and as_derived()
+                # functions.
+                definitions: One<unit>;
+
+            }
+
+        }
+
+        # Definitions that are only allowed in the "header" of the file. That
+        # is, the toplevel unit of a file is zero or more of these followed by
+        # zero or more of any other unit, separated by semicolons.
+        header_directive {
+
+            # Defines a file-level parameter. When there is "template" in front
+            # (i.e. in the AST it is surrounded by Template), the value for the
+            # parameter is specified at compile-time, otherwise it is specified
+            # at runtime.
+            parameter_definition {
+
+                # The parameter definition body; a comma-separated list of
+                # definitions and (default-value) assignment units.
+                data: One<unit>;
+
+            }
+
+            # An include directive.
+            include_directive {
+
+                # The path to the file.
+                path: One<string_literal>;
+
+                # Parameter associations for the included file.
+                associations: One<unit>;
+
+            }
+
+        }
+
+    }
+
+    # Purely grammatical constructs that don't have a context-free semantical
+    # definition.
+    grammatical {
+
+        # Template marker. This can go in front of function parameter
+        # definitions and file parameter definitions.
+        template_marker {
+
+            # The unit that the marker is attached to.
+            data: One<unit>;
+
+        }
+
+        # Two units separated by a colon.
+        colon {
+
+            # The unit to the left of the separating colon.
+            lhs: One<unit>;
+
+            # The unit to the right of the separating colon.
+            rhs: One<unit>;
+
+        }
+
+        # A list of comma-separated units.
+        comma_separated {
+
+            # The comma-separated elements.
+            elements: Many<unit>;
+
+        }
+
+        # A list of semicolon-separated units.
+        semicolon_separated {
+
+            # The semicolon-separated elements.
+            elements: Many<unit>;
+
+        }
+
+    }
+
+    # Erroneous unit.
+    erroneous_unit {
+        error;
+    }
+
+}
+
+# The file version identifier.
+version {
+
+    # The list of version components, ordered major to minor.
+    items: Many<decimal_integer_literal>;
+
+}
+
+# Any root node for the AST.
+root {
+
+    # A complete program.
+    program {
+
+        # File version.
+        version: One<version>;
+
+        # The combined program header and body.
+        data: One<unit>;
+
+    }
+
+    # Placeholder for a program with a parse error.
+    erroneous_program {
+        error;
+    }
+
+}

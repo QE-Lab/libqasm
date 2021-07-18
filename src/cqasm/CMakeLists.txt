@@ -191,6 +191,61 @@ generate_funcs(
 list(APPEND CQASM_V1_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v1-functions-gen.cpp")
 
 #-------------------------------------------------------------------------------
+# cQASM v2.x code generation and inclusion
+#-------------------------------------------------------------------------------
+
+# List of non-generated sources.
+set(CQASM_V2_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-primitives.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-ast.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-parse-helper.cpp"
+)
+
+# Generate the lexer.
+flex_target(
+    cqasm-v2-lexer
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-lexer.l"
+    "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-lexer.cpp"
+    COMPILE_FLAGS
+        "--header-file=${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-lexer.hpp ${flex_win_compat}"
+)
+list(APPEND CQASM_V2_SOURCES ${FLEX_cqasm-v2-lexer_OUTPUTS})
+
+# Generate the parser.
+bison_target(
+    cqasm-v2-parser
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-parser.y"
+    "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-parser.cpp"
+    COMPILE_FLAGS
+        "-rall --report-file=${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-parser.txt -Werror=conflicts-sr -Werror=conflicts-rr"
+)
+list(APPEND CQASM_V2_SOURCES ${BISON_cqasm-v2-parser_OUTPUTS})
+
+# Dependency between lexer and parser.
+add_flex_bison_dependency(
+    cqasm-v2-lexer
+    cqasm-v2-parser
+)
+
+# Generate the abstract syntax tree classes.
+generate_tree_py(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-ast.tree"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/cqasm-v2-ast-gen.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-ast-gen.cpp"
+    "${LIBQASM_GENERATED_PYTHON_FILES}/cqasm-v2-ast-gen.py"
+)
+list(APPEND CQASM_V2_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-ast-gen.cpp")
+
+# Generate the semantic tree classes.
+generate_tree_py(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cqasm-v2-semantic.tree"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/cqasm-v2-semantic-gen.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-semantic-gen.cpp"
+    "${LIBQASM_GENERATED_PYTHON_FILES}/cqasm-v2-semantic-gen.py"
+)
+list(APPEND CQASM_V2_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/cqasm-v2-semantic-gen.cpp")
+
+#-------------------------------------------------------------------------------
 # Compilation instructions
 #-------------------------------------------------------------------------------
 
@@ -204,6 +259,7 @@ add_library(
     ${TREE_LIB_SRCS}
     ${CQASM_COMMON_SOURCES}
     ${CQASM_V1_SOURCES}
+    ${CQASM_V2_SOURCES}
 )
 
 target_compile_definitions(cqasm_objlib PRIVATE ${TREE_LIB_PRIVATE_DEFS})

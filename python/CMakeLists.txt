@@ -198,3 +198,13 @@ install(
     DESTINATION "${LIBQASM_CQASM_PYTHON_DIR}/v1"
     RENAME "values.py"
 )
+install(
+    FILES "${LIBQASM_GENERATED_PYTHON_FILES}/cqasm-v2-ast-gen.py"
+    DESTINATION "${LIBQASM_CQASM_PYTHON_DIR}/v2"
+    RENAME "ast.py"
+)
+install(
+    FILES "${LIBQASM_GENERATED_PYTHON_FILES}/cqasm-v2-semantic-gen.py"
+    DESTINATION "${LIBQASM_CQASM_PYTHON_DIR}/v2"
+    RENAME "semantic.py"
+)

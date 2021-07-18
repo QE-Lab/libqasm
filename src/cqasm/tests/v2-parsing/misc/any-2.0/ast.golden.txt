@@ -1,0 +1,45 @@
+SUCCESS
+Program( # input.cq:1:1..3:24
+  version: <
+    Version( # input.cq:1:1..10
+      items: [
+        DecimalIntegerLiteral( # input.cq:1:7..8
+          value: 2
+        )
+        DecimalIntegerLiteral( # input.cq:1:9..10
+          value: 0
+        )
+      ]
+    )
+  >
+  data: <
+    SemicolonSeparated( # input.cq:1:10..3:24
+      elements: [
+        PrintStatement( # input.cq:1:10..3:23
+          modifiers: <
+            Modifiers( # input.cq:1:10
+              scope: <
+                ScopeLocal( # input.cq:1:10
+)
+              >
+              lifetime: <
+                LifetimeAutomatic( # input.cq:1:10
+)
+              >
+              implementation: <
+                ImplementationAutomatic( # input.cq:1:10
+)
+              >
+            )
+          >
+          data: <
+            StringLiteral( # input.cq:3:7..22
+              value: Hello, world!
+            )
+          >
+        )
+      ]
+    )
+  >
+)
+

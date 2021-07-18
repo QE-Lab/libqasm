@@ -1,0 +1,43 @@
+# Implementation for the semantic tree node classes.
+source
+
+# Header file for the semantic tree node classes.
+header
+
+// Include tree base classes.
+include "cqasm-tree.hpp"
+tree_namespace cqasm::tree
+
+// Include primitive types.
+include "cqasm-v2-primitives.hpp"
+import cqasm.v2.primitives
+
+// Initialization function to use to construct default values for the tree base
+// classes and primitives.
+initialize_function cqasm::v2::primitives::initialize
+serdes_functions cqasm::v2::primitives::serialize cqasm::v2::primitives::deserialize
+
+// Include SourceLocation annotation object for the debug dump generator.
+src_include "cqasm-annotations.hpp"
+location cqasm::annotations::SourceLocation
+
+# Namespace for the semantic tree node classes.
+namespace cqasm
+namespace v2
+namespace semantic
+
+# The file version identifier.
+version {
+
+    # The list of version components, ordered major to minor.
+    items: cqasm::v2::primitives::Version;
+
+}
+
+# A complete program.
+program {
+
+    # File version.
+    version: One<version>;
+
+}
